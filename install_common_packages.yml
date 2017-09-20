@@ -1,0 +1,27 @@
+---
+- hosts: web
+  remote_user: root
+
+  tasks:
+  - name: install common packages for all servers
+    apt: 
+      update_cache=yes
+      state=latest
+      name={{item}}
+    with_items: 
+    - apache2
+    - curl
+    - htop
+    - ncdu
+    - pwgen
+    - strace
+    - sudo
+    - tar
+    - unzip
+    - vim
+    - wget
+    - whois
+    - screen
+    - nmap
+    - git 
+    - wget

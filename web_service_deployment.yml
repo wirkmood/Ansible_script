@@ -1,0 +1,14 @@
+---
+- hosts: web
+  remote_user: root
+
+  tasks:
+  - name: install common packages for all servers
+    apt: 
+      update_cache=yes
+      state=latest
+      name={{item}}
+    with_items:
+        - apache2
+        - git
+        - curl

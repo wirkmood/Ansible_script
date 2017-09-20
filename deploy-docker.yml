@@ -1,0 +1,24 @@
+---
+- hosts: docker
+  user: root
+
+  tasks:
+
+    - name : install docker apt-key
+      command: apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
+    
+    - name: Add deb repo for docker
+      apt_repository: repo='deb https://apt.dockerproject.org/repo debian-stretch main'
+    
+    - name: Update and install docker/git/curl
+      apt: 
+        update_cache=yes
+        state=latest
+        name={{item}}
+      with_items:
+      - docker-engine
+      - docker
+      - git
+      - curl
+      - apt-transport-https
+      - ca-certificates

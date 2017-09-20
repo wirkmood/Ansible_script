@@ -1,0 +1,11 @@
+---
+- hosts: docker
+  remote_user: root
+
+  tasks:
+  - name: Install webmin package .deb
+    get_url:
+      url="http://prdownloads.sourceforge.net/webadmin/webmin_1.850_all.deb"
+      dest="/home/toto/webmin_1.850_all.deb"
+  - name: Install webmin.deb
+    apt : deb="/home/toto/webmin_1.850_all.deb"

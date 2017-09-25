@@ -1,2 +1,2 @@
 # Ansible_script
-Scripts for deploy services with ansible
+Some scripts for deploy services with ansible :

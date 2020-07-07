@@ -1,0 +1,209 @@
+---
+- name: How to integrate a linux server to an active directory with ansible
+  vars_prompt:
+    - name: "%Hostname%"
+      prompt: "Select your host"
+      private: no
+    - name: "bind_password"
+      prompt: "Password for %adminaccount@yourdomaine.com"
+      private: yes
+  hosts: "{{ %Hostname% }}"
+  gather_facts: yes
+
+
+ 
+  tasks:       
+    - name: APT Configuration - Set the proxy for APT (No needed)
+      copy:
+       content: 'Acquire::http::Proxy "http://$proxyIP:port";'
+       dest: /etc/apt/apt.conf.d/proxy.conf
+       
+    - name: DNS Configuration - Set the DNS config
+      lineinfile:
+        path: /etc/resolv.conf
+        regexp: 'nameserver 127.0.0.53'
+        state: present
+        line: 'nameserver %DNSSERVERIP%'
+
+      lineinfile:
+        path: /etc/resolv.conf
+        insertbefore: 'options edns0'
+        state: present
+        line: '%domaine name%'
+             
+    - name:  APT Installation - upgrade all packages to the latest version
+      apt:
+        name: "*"
+        state: latest    
+        
+    - name: APT Installation - Install packages needed
+      apt:
+        update_cache: yes
+        pkg: 
+        - realmd
+        - vim
+        - sssd
+        - sssd-tools
+        - oddjob
+        - oddjob-mkhomedir
+        - libnss-sss
+        - libpam-sss
+        - krb5-user
+        - adcli
+        - samba-common-bin
+        - tcpdump
+        - clamav 
+        - clamav-daemon
+        - python3-pip
+        - ntpdate
+        - ntp
+        - rabbitvcs-cli
+        - rabbitvcs-core
+        - rabbitvcs-gedit
+        - rabbitvcs-nautilus
+        - openjdk-8-jdk
+        - openjdk-8-jre
+        - default-jdk
+        - default-jdk-doc
+        - jedit
+        - vlc
+        - vlc-bin
+        - qemu
+        state: latest
+        
+    - name: APT Purge - Remove web-launchers
+      apt:  
+        pkg:
+        - ubuntu-web-launchers
+        - gnome-initial-setup
+        state: absent
+        autoremove: yes
+ 
+    - name: PIP Installation - Install pexpect
+      pip:
+        name: pexpect
+  
+    - name: KERBEROS configuration - Edit krb5.conf file and set value of default_realm    
+      lineinfile:
+        path: /etc/krb5.conf
+        regexp: 'default_realm = ATHENA.MIT.EDU'
+        state: present
+        line: '       default_realm = %domaine name%'
+      
+    - name: KERBEROS configuration - Edit krb5.conf file and add blockline dns_lookup  
+      blockinfile:
+        path: /etc/krb5.conf
+        block: |      
+                      dns_lookup_kdc = true
+                      dns_lookup_realm = true
+        insertbefore: 'kdc_timesync'
+        
+    - name: TIMESYNCD Configuration - Edit timesyncd.conf file and set value NTP
+      lineinfile:
+        path: /etc/systemd/timesyncd.conf
+        regexp: "#NTP="
+        state: present
+        line: "NTP=%NTPSERVER%"
+
+    - name: Set/Enable/Restart ntp service
+      command: "timedatectl set-ntp true"
+      command: "systemctl enable systemd-timesyncd.service"
+      command: "systemctl restart systemd-timesyncd.service"
+      command: "timedatectl --adjust-system-clock"
+
+    - name: REALM configuration - Create and config realmd.conf file
+      copy:
+         content: |
+          [users]         
+          default-home = /home/%D/%U
+          default-shell = /bin/bash
+   
+          [active-directory]
+          default-client = sssd
+          os-name = Ubuntu Client
+          os-version = Ubuntu 18.04.3 LTS
+   
+          [service]
+          automatic-install = no
+  
+          [hensoldt.fr]
+          fully-qualified-names = yes
+          automatic-id-mapping = no
+          user-principal = yes
+          manage-system = yes
+         dest: /etc/realmd.conf
+    
+    - name: PAM configuration - Create home directory on login
+      command: "pam-auth-update --enable mkhomedir"
+    
+    - name: Join GNU/LINUX to the domain
+      expect:
+        command: "realm join --user=%Adminaccountname --computer-ou=%OU%"
+        responses: 
+           Password for *: "{{ bind_password }}"
+      ignore_errors: True
+
+    
+    - name: SSSD Configuration - Edit and set sssd.conf file
+      copy:
+        content: |
+          [sssd]
+          domains = %domaine name%
+          config_file_version = 2
+          services = nss, pam, ssh
+          
+          [domain/hensoldt.fr]
+          ad_domain = %domaine name%
+          krb5_realm = HENSOLDT.FR
+          realmd_tags = manage-system joined-with-adcli
+          cache_credentials= True
+          id_provider = ad
+          krb5_store_password_if_offline = True
+          default_shell = /bin/bash
+          ldap_id_mapping = True
+          use_fully_qualified_names= False
+          fallback_homedir = /home/%d/%u
+          access_provider = ad
+
+        dest: /etc/sssd/sssd.conf
+
+    - name: Restart sssd 
+      service:
+         name: sssd
+         state: restarted
+                    
+    - name: Restart realmd 
+      service: 
+         name: realmd
+         state: restarted
+   
+    - name: CLAMAV configuration - Edit and set freshclam.conf to add Proxy configuration (No needed)
+      blockinfile:
+        path:  /etc/clamav/freshclam.conf
+        insertafter: "DatabaseMirror database.clamav.net"
+        state: present
+        content: | 
+                  HTTPProxyServer %ip proxy%
+                  HTTPProxyPort %port proxy% 
+      ignore_errors: True
+              
+    - name: restart clamav service  
+      command: "systemctl stop clamav-freshclam"
+      command: "freshclam"
+      command: "systemctl start clamav-freshclam"
+      
+
+    - name: SAMBA configuration - Config smb.conf
+      lineinfile:
+        path: /etc/samba/smb.conf
+        regexp: 'workgroup = WORKGROUP'
+        state: present
+        line: 'workgroup = %Netbios Domaine%'
+
+    - name: Block usb ports
+      file:
+        path: /media
+        mode: '0000' 
+        
+    - name: Reboot 
+      reboot:

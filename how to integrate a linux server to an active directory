@@ -1,26 +1,37 @@
 The main goal :
-- This ansible playbook help you to automate integration more easily your LINUX Servers to your Active Directory organisation and configure some basic parameters (Proxy, NTP, APT Packages).
+- This ansible playbook help you to automate integration more easily your LINUX Servers to your Active Directory organisation and configure some basic parameters (Proxy, NTP, APT Packages, Clamav Antivirus, Samba client).
 - Learn how to use  an ansible playbook.
 - Save time with this IT process !
 
-Feel free to use how you want this script ! ---
+Feel free to use how you want this script and rework it !
+
+Variables :
+%Hostname% = Your host (see your /etc/ansible/hosts file)
+%administrator@yourdomaine.com% = administrator@yourdomaine.com (you can replace by an other admin account)
+%Adminaccountname% = administrator 
+%domaine name% = yourdomaine.com
+%DOMAINENAME% = YOURDOMAINE.COM (UPPERCASE)
+%proxyIP% = IP of your Proxy server 
+%portproxy% = Port of your proxy
+%DNSSERVERIP% = IP of your DNS server
+%NTPSERVER% = FCQD or IP of your NTP server
+---
 - name: How to integrate a linux server to an active directory with ansible
   vars_prompt:
     - name: "%Hostname%"
       prompt: "Select your host"
       private: no
     - name: "bind_password"
-      prompt: "Password for %adminaccount@yourdomaine.com"
+      prompt: "Password for %administrator@yourdomaine.com%"
       private: yes
   hosts: "{{ %Hostname% }}"
   gather_facts: yes
 
 
- 
   tasks:       
     - name: APT Configuration - Set the proxy for APT (No needed)
       copy:
-       content: 'Acquire::http::Proxy "http://$proxyIP:port";'
+       content: 'Acquire::http::Proxy "http://%proxyIP:port%";'
        dest: /etc/apt/apt.conf.d/proxy.conf
        
     - name: DNS Configuration - Set the DNS config
@@ -62,18 +73,10 @@ Feel free to use how you want this script ! ---
         - python3-pip
         - ntpdate
         - ntp
-        - rabbitvcs-cli
-        - rabbitvcs-core
-        - rabbitvcs-gedit
-        - rabbitvcs-nautilus
         - openjdk-8-jdk
         - openjdk-8-jre
         - default-jdk
         - default-jdk-doc
-        - jedit
-        - vlc
-        - vlc-bin
-        - qemu
         state: latest
         
     - name: APT Purge - Remove web-launchers
@@ -131,7 +134,7 @@ Feel free to use how you want this script ! ---
           [service]
           automatic-install = no
   
-          [%DomaineName%]
+          [%DOMAINENAME%]
           fully-qualified-names = yes
           automatic-id-mapping = no
           user-principal = yes
@@ -188,8 +191,8 @@ Feel free to use how you want this script ! ---
         insertafter: "DatabaseMirror database.clamav.net"
         state: present
         content: | 
-                  HTTPProxyServer %ip proxy%
-                  HTTPProxyPort %port proxy% 
+                  HTTPProxyServer %proxyIP%
+                  HTTPProxyPort %portproxy% 
       ignore_errors: True
               
     - name: restart clamav service  

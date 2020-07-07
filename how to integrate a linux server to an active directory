@@ -29,7 +29,7 @@ Variables :
 
 
   tasks:       
-    - name: APT Configuration - Set the proxy for APT (No needed)
+    - name: APT Configuration - Set the proxy for APT (No mandatory)
       copy:
        content: 'Acquire::http::Proxy "http://%proxyIP:port%";'
        dest: /etc/apt/apt.conf.d/proxy.conf
@@ -185,7 +185,7 @@ Variables :
          name: realmd
          state: restarted
    
-    - name: CLAMAV configuration - Edit and set freshclam.conf to add Proxy configuration (No needed)
+    - name: CLAMAV configuration - Edit and set freshclam.conf to add Proxy configuration (No mandatory)
       blockinfile:
         path:  /etc/clamav/freshclam.conf
         insertafter: "DatabaseMirror database.clamav.net"
